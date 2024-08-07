@@ -1,6 +1,7 @@
-if (process.env.NODE_ENV !== "production"){
-    require ('dotenv').config();
+if (process.env.NODE_ENV !== "production") {
+    require('dotenv').config();
 }
+
 
 
 const express = require('express');
@@ -14,7 +15,7 @@ const methodOverride = require('method-override');
 const passport = require('passport');
 const LocalStrategy = require('passport-local');
 const User = require('./models/user');
-const helmet = require ('helmet');
+const helmet = require('helmet');
 
 const mongoSanitize = require('express-mongo-sanitize');
 
@@ -22,8 +23,11 @@ const mongoSanitize = require('express-mongo-sanitize');
 const userRoutes = require('./routes/users');
 const campgroundRoutes = require('./routes/campgrounds');
 const reviewRoutes = require('./routes/reviews');
+const MongoDBStore = require("connect-mongo")(session);
 
-mongoose.connect('mongodb://127.0.0.1:27017/yelp-camp');
+const dbUrl = 'mongodb://127.0.0.1:27017/yelp-camp';
+// const dbUrl = process.env.DB_URL;
+mongoose.connect(dbUrl);
 
 const db = mongoose.connection;
 db.on("error", console.error.bind(console, "connection error:"));
@@ -42,7 +46,18 @@ app.use(methodOverride('_method'))
 app.use(express.static(path.join(__dirname, 'public')))
 app.use(mongoSanitize())
 
+const store = new MongoDBStore({
+    url: dbUrl,
+    secret: 'isasecret',
+    touchAfter: 24 * 60 * 60
+})
+
+store.on("error", function (e) {
+    console.log("SESSION STORE ERROR", e)
+})
+
 const sessionConfig = {
+    store,
     name: 'session',
     secret: 'isasecret',
     resave: false,
@@ -65,6 +80,7 @@ const scriptSrcUrls = [
     "https://kit.fontawesome.com/",
     "https://cdnjs.cloudflare.com/",
     "https://cdn.jsdelivr.net",
+    
 ];
 const styleSrcUrls = [
     "https://kit-free.fontawesome.com/",
@@ -74,12 +90,14 @@ const styleSrcUrls = [
     "https://fonts.googleapis.com/",
     "https://use.fontawesome.com/",
     "https://cdn.jsdelivr.net",
+    
 ];
 const connectSrcUrls = [
     "https://api.mapbox.com/",
     "https://a.tiles.mapbox.com/",
     "https://b.tiles.mapbox.com/",
     "https://events.mapbox.com/",
+    
 ];
 
 const fontSrcUrls = [];
@@ -97,6 +115,7 @@ app.use(
                 "blob:",
                 "data:",
                 "https://res.cloudinary.com/dlxslka0z/", //SHOULD MATCH YOUR CLOUDINARY ACCOUNT!
+                "https://plus.unsplash.com",
                 "https://images.unsplash.com/",
             ],
             fontSrc: ["'self'", ...fontSrcUrls],
@@ -111,7 +130,7 @@ passport.use(new LocalStrategy(User.authenticate()));
 passport.serializeUser(User.serializeUser());
 passport.deserializeUser(User.deserializeUser());
 
-app.use((req, res, next) => {   
+app.use((req, res, next) => {
     // console.log(req.query);
     res.locals.currentUser = req.user;
     res.locals.success = req.flash('success');
